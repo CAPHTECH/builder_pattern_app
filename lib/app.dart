@@ -9,7 +9,7 @@ class App extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => MaterialApp(
         home: switch (ref.watch(myAccountProvider)) {
-          AsyncData(:final value) => FavoriteItemListScreen(account: value),
+          AsyncData(:final value) => FavoriteItemListScreen(account: value!),
           _ => const Center(child: CircularProgressIndicator()),
         },
       );

@@ -6,11 +6,11 @@ part of 'queries.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$myAccountHash() => r'41ff8de977a5e6fc54849845f5dba86e4eedb14a';
+String _$myAccountHash() => r'3e3f6580f8d28132bb5462c47da593be9eac17f1';
 
 /// See also [myAccount].
 @ProviderFor(myAccount)
-final myAccountProvider = AutoDisposeFutureProvider<Account>.internal(
+final myAccountProvider = AutoDisposeFutureProvider<Account?>.internal(
   myAccount,
   name: r'myAccountProvider',
   debugGetCreateSourceHash:
@@ -19,21 +19,23 @@ final myAccountProvider = AutoDisposeFutureProvider<Account>.internal(
   allTransitiveDependencies: null,
 );
 
-typedef MyAccountRef = AutoDisposeFutureProviderRef<Account>;
-String _$accountsHash() => r'37bec1f2e16913a8fd555d781a62ff6aa577fe0e';
+typedef MyAccountRef = AutoDisposeFutureProviderRef<Account?>;
+String _$followingAccountsHash() => r'45696846d1f865fcb7d2c3973f739991ce19be09';
 
-/// See also [accounts].
-@ProviderFor(accounts)
-final accountsProvider = AutoDisposeFutureProvider<List<Account>>.internal(
-  accounts,
-  name: r'accountsProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$accountsHash,
+/// See also [followingAccounts].
+@ProviderFor(followingAccounts)
+final followingAccountsProvider =
+    AutoDisposeFutureProvider<List<Account>>.internal(
+  followingAccounts,
+  name: r'followingAccountsProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$followingAccountsHash,
   dependencies: null,
   allTransitiveDependencies: null,
 );
 
-typedef AccountsRef = AutoDisposeFutureProviderRef<List<Account>>;
+typedef FollowingAccountsRef = AutoDisposeFutureProviderRef<List<Account>>;
 String _$postsHash() => r'79371defcae9777b70c6a1694bb8e5b889084370';
 
 /// See also [posts].

@@ -5,11 +5,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'queries.g.dart';
 
 @riverpod
-Future<Account> myAccount(MyAccountRef ref) async => MyAccount(id: AccountId('1'), name: 'Ryoichi Izumita');
+Future<Account?> myAccount(MyAccountRef ref) async => MyAccount(id: AccountId('1'), name: 'Ryoichi Izumita');
 
 @riverpod
-Future<List<Account>> accounts(AccountsRef ref) async => [
-      await ref.watch(myAccountProvider.future),
+Future<List<Account>> followingAccounts(FollowingAccountsRef ref) async => [
       OtherAccount(id: AccountId('2'), name: 'Following Account 1'),
       OtherAccount(id: AccountId('3'), name: 'Following Account 2'),
       OtherAccount(id: AccountId('4'), name: 'Following Account 3'),
@@ -61,7 +60,7 @@ Future<Iterable<Post>> posts(PostsRef ref) async {
     },
   ];
 
-  final accounts = await ref.watch(accountsProvider.future);
+  final accounts = await ref.watch(followingAccountsProvider.future);
 
   return posts.map((post) => Post(
         id: post['id'] as PostId,

@@ -1,33 +1,39 @@
-import 'package:builder_pattern_app/queries.dart';
-import 'package:builder_pattern_app/types.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 
-class ProviderContainerBuilder {
-  late ProviderContainer container;
-  final MyAccount defaultMyAccount = MyAccount(id: AccountId('1'), name: 'test');
-  MyAccount? myAccount;
-  final List<Account> accounts = [
-    OtherAccount(id: AccountId('2'), name: 'Following Account 1'),
-    OtherAccount(id: AccountId('3'), name: 'Following Account 2'),
-    OtherAccount(id: AccountId('4'), name: 'Following Account 3'),
-    OtherAccount(id: AccountId('5'), name: 'Following Account 4'),
-  ];
+import 'override_builder.dart';
+import 'uses_mock_mixin.dart';
 
-  final List<Override> _overrides = [];
-
-  void addOverride(Override override) => _overrides.add(override);
-
-  void setMyAccount([MyAccount? myAccount]) {
-    final newMyAccount = myAccount ?? defaultMyAccount;
-    this.myAccount = newMyAccount;
-    accounts.add(newMyAccount);
-    addOverride(myAccountProvider.overrideWith((_) => newMyAccount));
-  }
+class ProviderContainerBuilder with OverrideBuilder, UsesMockMixin, ProviderContainerWrapper {
+  ProviderContainer? _container;
 
   ProviderContainer build() {
-    container = ProviderContainer(overrides: _overrides);
-    addTearDown(container.dispose);
-    return container;
+    if (_container != null) return _container!;
+    _container = ProviderContainer(overrides: overrides);
+    addTearDown(_container!.dispose);
+    return _container!;
   }
+
+  @override
+  ProviderContainerBuilder get containerBuilder => this;
+
+  @override
+  ProviderContainer get container => _container!;
+
+  @override
+  final List<Override> overrides = [];
+
+  @override
+  final List<Mock> mocks = [];
 }
+
+mixin ProviderContainerWrapper {
+  ProviderContainerBuilder get containerBuilder;
+
+  ProviderContainer get container => containerBuilder.container;
+
+  Result read<Result>(ProviderListenable<Result> provider) => container.read(provider);
+}
+
+mixin UsesProviderContainerMixin implements ProviderContainerWrapper, OverrideBuilder, UsesMockMixin {}

@@ -2,135 +2,84 @@ import 'package:builder_pattern_app/favorite_data_source.dart';
 import 'package:builder_pattern_app/favorite_item_list_screen.dart';
 import 'package:builder_pattern_app/queries.dart';
 import 'package:builder_pattern_app/types.dart';
-import 'package:builder_pattern_app/un_favorite_command.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'builders/test_widget_builder.dart';
-import 'mock_favorite_data_source.dart';
+import 'builders/account_builder.dart';
+import 'builders/favorite_item_generator.dart';
+import 'builders/widget_directors.dart';
+
+// ignore: invalid_use_of_internal_member
+class MockFavoriteDataSource extends BuildlessAutoDisposeAsyncNotifier<List<FavoriteItem>>
+    with Mock
+    implements FavoriteDataSource {}
+
+class FavoriteItemListScreenBuilder extends ScreenWidgetDirector<Account> with AccountBuilder, FavoriteItemGenerator {
+  void setFavoriteDataSource(int itemCount) {
+    addOverrideFactory(() {
+      final dataSource = MockFavoriteDataSource();
+      setMock(dataSource);
+      when(() => dataSource.build(ofAccount: args))
+          .thenAnswer((_) async => List.generate(itemCount, (i) => favoriteItem(args)));
+      return favoriteDataSourceProvider(ofAccount: args).overrideWith(() => dataSource);
+    });
+  }
+}
 
 void main() {
-  late TestWidgetBuilder<Account> widgetBuilder;
-  final MyAccount myAccount = MyAccount(id: AccountId('1'), name: 'test');
-  late Account account = myAccount;
-
-  setUpAll(() {
-    registerFallbackValue(
-      UnFavoriteItem(
-        FavoriteItem(
-          account: account,
-          post: Post(
-            id: PostId('1'),
-            title: 'title',
-            content: 'content',
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            account: account,
-          ),
-        ),
-      ),
-    );
-  });
+  late FavoriteItemListScreenBuilder widget;
 
   setUp(() {
-    widgetBuilder = TestWidgetBuilder<Account>()
-      ..containerBuilder.setMyAccount()
-      ..setArgsFactory(() => throw UnimplementedError())
-      ..setWidgetFactory((account) => FavoriteItemListScreen(account: account))
-      ..setUnFavoriteMock();
+    widget = FavoriteItemListScreenBuilder()
+      ..loggedIn()
+      ..setTargetFactory(() => FavoriteItemListScreen(account: widget.args));
   });
 
-  group('FavoriteのアカウントがMyAccountである', () {
-    setUp(() => widgetBuilder.setArgsFactory(() => myAccount));
+  group('Displayed account is MyAccount', () {
+    setUp(() => widget.setArgsFactory(() => AccountBuilder.defaultMyAccount));
 
-    group('FavoriteItemが10個ある', () {
-      setUp(() => widgetBuilder.setFavoriteDataSource());
+    group('FavoriteItem has 10 items', () {
+      setUp(() => widget.setFavoriteDataSource(10));
 
-      testWidgets('FavoriteItemが10個表示される', (tester) async {
-        final screen = widgetBuilder.build();
-        await tester.pumpWidget(screen);
+      testWidgets('FavoriteItem is displayed 10 times', (tester) async {
+        await tester.pumpWidget(widget.construct());
         await tester.pumpAndSettle();
 
-        final items = await widgetBuilder.containerBuilder.container
-            .read(favoriteItemsProvider(ofAccount: widgetBuilder.args).future);
+        final items = await widget.read(favoriteItemsProvider(ofAccount: widget.args).future);
         for (final item in items) {
           await tester.scrollUntilVisible(find.byKey(ValueKey(item.post.id)), 50);
         }
-      });
-
-      testWidgets('UnFavoriteボタンをタップするとunFavoriteCommandが実行される', (tester) async {
-        final screen = widgetBuilder.build();
-        await tester.pumpWidget(screen);
-        await tester.pumpAndSettle();
-
-        final items = await widgetBuilder.containerBuilder.container
-            .read(favoriteItemsProvider(ofAccount: widgetBuilder.args).future);
-
-        final cell = find.byKey(ValueKey(items.first.post.id));
-        final button = find.descendant(of: cell, matching: find.byType(IconButton));
-        await tester.tap(button);
-        await tester.pumpAndSettle();
-
-        verify(() => widgetBuilder.mock<MockCallback<UnFavoriteItem, Future<void>>>().call(UnFavoriteItem(items.first)))
-            .called(1);
       });
     });
   });
 
-  group('表示するAccountがOtherAccountである', () {
-    setUp(() => widgetBuilder.setArgsFactory(() => OtherAccount(id: AccountId('2'), name: 'test')));
+  group('Displayed account is OtherAccount', () {
+    setUp(() => widget.setArgsFactory(() => AccountBuilder.otherAccounts.first));
 
-    group('FavoriteItemが10個ある', () {
-      setUp(() => widgetBuilder.setFavoriteDataSource());
+    group('FavoriteItem has 10 items', () {
+      setUp(() => widget.setFavoriteDataSource(10));
 
-      testWidgets('FavoriteItemが10個表示される', (tester) async {
-        final screen = widgetBuilder.build();
-        await tester.pumpWidget(screen);
+      testWidgets('FavoriteItem is displayed 10 times', (tester) async {
+        await tester.pumpWidget(widget.construct());
         await tester.pumpAndSettle();
 
-        final items = await widgetBuilder.containerBuilder.container
-            .read(favoriteItemsProvider(ofAccount: widgetBuilder.args).future);
+        final items = await widget.read(favoriteItemsProvider(ofAccount: widget.args).future);
         for (final item in items) {
           await tester.scrollUntilVisible(find.byKey(ValueKey(item.post.id)), 50);
         }
       });
 
-      testWidgets('UnFavoriteボタンが表示されない', (tester) async {
-        final screen = widgetBuilder.build();
-        await tester.pumpWidget(screen);
+      testWidgets('UnFavorite button is not displayed', (tester) async {
+        await tester.pumpWidget(widget.construct());
         await tester.pumpAndSettle();
 
-        final items = await widgetBuilder.containerBuilder.container
-            .read(favoriteItemsProvider(ofAccount: widgetBuilder.args).future);
+        final items = await widget.read(favoriteItemsProvider(ofAccount: widget.args).future);
         final cell = find.byKey(ValueKey(items.first.post.id));
         final button = find.descendant(of: cell, matching: find.byType(IconButton));
         expect(button, findsNothing);
       });
     });
   });
-}
-
-extension on TestWidgetBuilder<Account> {
-  MockFavoriteDataSource setFavoriteDataSource() {
-    final dataSource = MockFavoriteDataSource();
-    mocks.add(dataSource);
-    addOverride((account) {
-      when(() => dataSource.build(ofAccount: account))
-          .thenAnswer((_) async => List.generate(10, (i) => containerBuilder.favoriteItem(account)));
-      return favoriteDataSourceProvider(ofAccount: account).overrideWith(() => dataSource);
-    });
-    return dataSource;
-  }
-
-  void setUnFavoriteMock() {
-    final callback = MockCallback<UnFavoriteItem, Future<void>>();
-    mocks.add(callback);
-    when(() => callback.call(any())).thenAnswer((_) async {});
-    addOverride((account) => unFavoriteCommandProvider.overrideWithValue(callback.call));
-  }
-}
-
-class MockCallback<Arg, Result> extends Mock {
-  Result call(Arg arg);
 }

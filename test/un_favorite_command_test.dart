@@ -1,47 +1,55 @@
+import 'package:builder_pattern_app/favorite_data_source.dart';
 import 'package:builder_pattern_app/types.dart';
 import 'package:builder_pattern_app/un_favorite_command.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'mock_favorite_data_source.dart';
-import 'builders/provider_container_builder.dart';
+import 'builders/account_builder.dart';
+import 'builders/favorite_item_generator.dart';
+import 'builders/test_target_director.dart';
+
+// ignore: invalid_use_of_internal_member
+class MockUnFavoriteDataSource extends BuildlessAutoDisposeNotifier<void> with Mock implements UnFavoriteDataSource {}
+
+class UnFavoriteCommandBuilder extends TestTargetDirector<Future<void> Function(UnFavoriteItem), UnFavoriteItem>
+    with AccountBuilder, FavoriteItemGenerator {
+  void buildMockUnFavoriteDataSource() => addOverrideFactory(() {
+        final dataSource = MockUnFavoriteDataSource();
+        setMock(dataSource);
+        when(() => dataSource.unFavorite(args)).thenAnswer((_) async {});
+        return unFavoriteDataSourceProvider.overrideWith(() => dataSource);
+      });
+}
 
 void main() {
-  late ProviderContainerBuilder containerBuilder;
-  final MyAccount myAccount = MyAccount(id: AccountId('1'), name: 'test');
-  late ProviderContainer container;
-  late Account account;
+  late UnFavoriteCommandBuilder builder;
 
-  setUp(() => containerBuilder = ProviderContainerBuilder()..setMyAccount());
+  setUp(() => builder = UnFavoriteCommandBuilder()
+    ..loggedIn()
+    ..buildMockUnFavoriteDataSource()
+    ..setTargetFactory(() => builder.read(unFavoriteCommandProvider)));
 
-  group('操作対象のアカウントがMyAccountのとき', () {
-    late MockFavoriteDataSource favoriteDataSource;
-    late FavoriteItem targetItem;
+  group('When the target account is MyAccount', () {
+    setUp(() => builder..setArgsFactory(() => UnFavoriteItem(builder.favoriteItem(AccountBuilder.defaultMyAccount))));
 
-    setUp(() {
-      account = myAccount;
-      favoriteDataSource = containerBuilder.setFavoriteDataSource(account);
-      targetItem = containerBuilder.favoriteItem(account);
-      when(() => favoriteDataSource.remove(targetItem)).thenAnswer((_) => Future.value());
-      container = containerBuilder.build();
-    });
+    test('Can UnFavorite', () async {
+      final command = builder.construct();
+      await command(builder.args);
 
-    test('UnFavoriteできる', () async {
-      await container.read(unFavoriteCommandProvider)(targetItem as UnFavoriteItem);
-      verify(() => favoriteDataSource.remove(targetItem)).called(1);
+      verify(() => builder.mock<MockUnFavoriteDataSource>().unFavorite(builder.args)).called(1);
     });
   });
 
-  group('操作対象のアカウントがOtherAccountのとき', () {
-    setUp(() => account = containerBuilder.accounts.first);
+  group('When the target account is OtherAccount', () {
+    setUp(
+        () => builder..setArgsFactory(() => UnFavoriteItem(builder.favoriteItem(AccountBuilder.otherAccounts.first))));
 
-    test('UnFavoriteできない', () async {
-      final targetItem = containerBuilder.favoriteItem(account);
-      final container = containerBuilder.build();
+    test('Can not UnFavorite', () async {
+      final command = builder.construct();
 
       expectLater(
-        () async => await container.read(unFavoriteCommandProvider)(targetItem as UnFavoriteItem),
+        () async => await command(builder.args),
         throwsA(isA<ArgumentError>()),
       );
     });
